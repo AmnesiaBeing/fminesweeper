@@ -8,16 +8,30 @@
 
 import 'package:flutter/foundation.dart';
 
+enum TileState {
+  // 未翻开
+  UNOPENED,
+  // 未翻开，标记了
+  FLAGGED,
+  // 已翻开，可能是地雷
+  OPENED,
+}
+
 class TileModel {
-  bool isOpened;
-  bool isFlagged;
+  // 三种互斥状态
+  TileState tileState;
+  // 是否是地雷
   bool isMine;
+
+  // 错误标记：已翻开且为地雷，标记了且不是地雷
+  // bool get isWrong =>
+  //     (tileState == TileState.OPENED && isMine) ||
+  //     (tileState == TileState.FLAGGED && !isMine);
 
   int adjacentMines;
 
   TileModel({
-    @required this.isOpened,
-    @required this.isFlagged,
+    @required this.tileState,
     @required this.isMine,
     this.adjacentMines = 0,
   });

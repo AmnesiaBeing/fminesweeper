@@ -9,24 +9,24 @@ class MineSweeperBoardWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<GameModel>(
-      builder: (context, model, child) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Card(
-            child: Container(
-              width: 24.0 * model.cols + 16.0,
-              height: 24.0 * model.rows + 16.0,
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                children: <Widget>[
-                  MineSweeperBoard(model: model),
-                ],
-              ),
+      builder: (context, model, child) {
+        double tileWidth =
+            (MediaQuery.of(context).orientation == Orientation.landscape)
+                ? (MediaQuery.of(context).size.height - 16.0) / model.rows
+                : (MediaQuery.of(context).size.width - 16.0) / model.cols;
+        return Card(
+          child: Container(
+            width: tileWidth * model.cols + 16.0,
+            height: tileWidth * model.rows + 16.0,
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: <Widget>[
+                MineSweeperBoard(model: model),
+              ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -40,8 +40,8 @@ class MineSweeperBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 24.0 * model.rows,
-      width: 24.0 * model.cols,
+      height: 36.0 * model.rows,
+      width: 36.0 * model.cols,
       child: GridView.count(
         crossAxisCount: model.cols,
         physics: NeverScrollableScrollPhysics(),

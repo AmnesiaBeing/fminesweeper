@@ -46,7 +46,7 @@ class GameModel with ChangeNotifier {
 
   /// 游戏状态
   GameState get gameState => _gameState;
-  GameState _gameState;
+  GameState _gameState = GameState.STARTING;
 
   /// 存储所有方块的ViewModel
   List<List<TileModel>> get tiles => _tiles;
@@ -65,14 +65,17 @@ class GameModel with ChangeNotifier {
   void onOpen(int x, int y) {
     final tile = _tiles[x][y];
 
-    if (tile.isOpened ||
-        tile.isFlagged ||
+    if (tile.tileState != TileState.UNOPENED ||
         _gameState == GameState.WIN ||
         _gameState == GameState.LOST) {
       return;
     }
 
-    if (_gameState == GameState.STARTING) _placeMines(x, y);
+    // 首先，布置地雷；然后，计算所有附近的地雷数量
+    if (_gameState == GameState.STARTING) {
+      _placeMines(x, y);
+      _getNumAdjacentMines();
+    }
 
     _onOpen(x, y);
 
@@ -81,12 +84,12 @@ class GameModel with ChangeNotifier {
 
   void _onOpen(int x, int y) {
     final tile = _tiles[x][y];
-    tile.isOpened = true;
+    tile.tileState = TileState.OPENED;
 
     if (tile.isMine) {
       _endGame(false, losingTile: <int>[x, y]);
     } else {
-      tile.adjacentMines = _getNumAdjacentMines(x, y);
+      // 如果当前附近地雷数量为0，则翻开附近的所有方块
       if (tile.adjacentMines == 0) {
         _visitAllAdjacentMines(x, y);
       }
@@ -103,9 +106,11 @@ class GameModel with ChangeNotifier {
   void onSuperOpen(int x, int y) {
     final tile = _tiles[x][y];
 
-    if (tile.isOpened =
-        false || _gameState == GameState.LOST || _gameState == GameState.WIN)
-      return;
+    if (tile.tileState != TileState.OPENED ||
+        _gameState == GameState.LOST ||
+        _gameState == GameState.WIN) return;
+
+    _visitAllAdjacentMines(x, y);
   }
 
   /// 放置一个雷区标志的执行函数
@@ -116,18 +121,19 @@ class GameModel with ChangeNotifier {
   void onFlag(int x, int y) {
     final tile = _tiles[x][y];
 
-    if (_gameState == GameState.LOST ||
-        tile.isOpened ||
+    if (tile.tileState == TileState.OPENED ||
+        _gameState == GameState.LOST ||
         _gameState == GameState.WIN) return;
 
-    if (tile.isFlagged) {
+    if (tile.tileState == TileState.FLAGGED) {
       _flagged--;
       if (!tile.isMine) _improperlyFlagged--;
+      tile.tileState = TileState.UNOPENED;
     } else {
       _flagged++;
       if (!tile.isMine) _improperlyFlagged++;
+      tile.tileState = TileState.FLAGGED;
     }
-    tile.isFlagged = !tile.isFlagged;
 
     if (_improperlyFlagged == 0 && _flagged == _mines) {
       _endGame(true);
@@ -156,13 +162,7 @@ class GameModel with ChangeNotifier {
     _tiles
         .asMap()
         .forEach((rowIndex, row) => row.asMap().forEach((colIndex, tile) {
-              if (!tile.isFlagged) {
-                tile.isOpened = true;
-                // tile.isExploded = losingTile != null &&
-                //     losingTile[0] == rowIndex &&
-                //     losingTile[1] == colIndex;
-                tile.adjacentMines = _getNumAdjacentMines(rowIndex, colIndex);
-              }
+              tile.tileState = TileState.OPENED;
             }));
   }
 
@@ -177,23 +177,34 @@ class GameModel with ChangeNotifier {
     [1, 1],
   ];
 
-  int _getNumAdjacentMines(int x, int y) {
-    int adjacent = 0;
-    kBfsDirections.forEach((List<int> dir) {
-      final newX = x + dir[0];
-      final newY = y + dir[1];
-      if (_isInBounds(newX, newY) && _tiles[newX][newY].isMine) {
-        adjacent++;
+  void _getNumAdjacentMines() {
+    int _getNumAdjacentMinesAtRC(int x, int y) {
+      // 当前方块是地雷就不算了
+      if (_tiles[x][y].isMine) return 0;
+      int adjacent = 0;
+      kBfsDirections.forEach((List<int> dir) {
+        final newX = x + dir[0];
+        final newY = y + dir[1];
+        if (_isInBounds(newX, newY) && _tiles[newX][newY].isMine) {
+          adjacent++;
+        }
+      });
+      return adjacent;
+    }
+
+    for (int r = 0; r < _rows; r++) {
+      for (int c = 0; c < _cols; c++) {
+        _tiles[r][c].adjacentMines = _getNumAdjacentMinesAtRC(r, c);
       }
-    });
-    return adjacent;
+    }
   }
 
   void _visitAllAdjacentMines(int x, int y) {
     kBfsDirections.forEach((List<int> dir) {
       final newX = x + dir[0];
       final newY = y + dir[1];
-      if (_isInBounds(newX, newY)) {
+      if (_isInBounds(newX, newY) &&
+          !(_tiles[newX][newY].tileState == TileState.OPENED)) {
         _onOpen(newX, newY);
       }
     });
@@ -208,9 +219,9 @@ class GameModel with ChangeNotifier {
         (x) => List.generate(
               _cols,
               (y) => TileModel(
-                isOpened: false,
+                tileState: TileState.UNOPENED,
                 isMine: false,
-                isFlagged: false,
+                adjacentMines: 0,
               ),
             ));
     notifyListeners();
@@ -237,10 +248,8 @@ class GameModel with ChangeNotifier {
       (x) => List.generate(
         _cols,
         (y) => TileModel(
-          isOpened: false,
+          tileState: TileState.UNOPENED,
           isMine: mines[x].contains(y),
-          isFlagged: false,
-          // isExploded: false,
         ),
       ),
     );

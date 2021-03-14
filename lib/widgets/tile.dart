@@ -33,7 +33,7 @@ class _TileState extends State<Tile> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.all(2.0),
+      margin: EdgeInsets.all(0.5),
       child: MouseRegion(
         onEnter: (_) => setState(() => _isHovering = true),
         onExit: (_) => setState(() => _isHovering = false),
@@ -46,14 +46,10 @@ class _TileState extends State<Tile> {
             borderRadius: BorderRadius.circular(4.0),
             child: Material(
               color: _getBackgroundColor(),
-              child: SizedBox(
-                height: 36.0,
-                width: 36.0,
-                child: Center(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) =>
-                        _getBlockContent(constraints),
-                  ),
+              child: Center(
+                child: LayoutBuilder(
+                  builder: (context, constraints) =>
+                      _getBlockContent(constraints),
                 ),
               ),
             ),
@@ -67,42 +63,45 @@ class _TileState extends State<Tile> {
     final iconSize = constraints.biggest.height - 1.0;
 
     Widget child;
-    if (widget.model.isOpened) {
-      if (widget.model.isMine) {
-        child = Icon(Icons.filter_tilt_shift, size: iconSize);
-      } else {
-        child = widget.model.adjacentMines > 0
-            ? Text('${widget.model.adjacentMines}')
-            : Container();
-      }
-    } else if (widget.model.isFlagged) {
-      if (!widget.model.isMine) {
-        child = Stack(
-          children: <Widget>[
-            Opacity(
-              opacity: 0.5,
-              child: Icon(Icons.filter_tilt_shift, size: iconSize),
-            ),
-            Icon(Icons.close, size: iconSize + 1.0, color: Colors.red),
-          ],
-        );
-      } else {
-        child = Icon(Icons.flag, color: Colors.red, size: iconSize);
-      }
+
+    if (widget.model.tileState == TileState.FLAGGED) {
+      child = Icon(Icons.flag, color: Colors.red, size: iconSize);
+    } else if (widget.model.tileState == TileState.OPENED) {
+      child = widget.model.adjacentMines > 0
+          ? Text('${widget.model.adjacentMines}')
+          : Container();
     } else {
       child = Container();
     }
+// if (widget.model.isWrong) {
+//       child = Stack(
+//         children: <Widget>[
+//           Opacity(
+//             opacity: 0.5,
+//             child: Icon(widget.model.isMine ? Icons.gps_fixed : Icons.flag,
+//                 size: iconSize),
+//           ),
+//           Icon(Icons.close, size: iconSize + 1.0, color: Colors.red),
+//         ],
+//       );
+//     } else
+
     return child;
   }
 
   Color _getBackgroundColor() {
     // if (widget.model.isExploded) return Colors.red;
 
-    bool isLightMode = Theme.of(context).brightness == Brightness.light;
-    bool isLighter =
-        widget.model.isOpened || (_isHovering && !widget.model.isFlagged);
-    if (isLighter) return isLightMode ? Colors.grey[300] : Colors.black45;
+    // bool isLightMode = Theme.of(context).brightness == Brightness.light;
+    // bool isLighter =
+    //     widget.model.isOpened || (_isHovering && !widget.model.isFlagged);
+    // if (isLighter) return isLightMode ? Colors.grey[300] : Colors.black45;
 
-    return isLightMode ? Colors.grey[400] : Colors.black;
+    // return isLightMode ? Colors.grey[400] : Colors.black;
+
+    bool isLighter = widget.model.tileState == TileState.OPENED ||
+        (_isHovering && !(widget.model.tileState == TileState.FLAGGED));
+
+    return isLighter ? Colors.grey[300] : Colors.grey[400];
   }
 }

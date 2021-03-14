@@ -35,36 +35,16 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: MultiProvider(
-        providers: [
-          ChangeNotifierProvider<GameModel>.value(value: GameModel()),
-        ],
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width,
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32.0) +
-                  const EdgeInsets.only(left: 32.0, right: 16.0),
-              child: Column(
-                children: <Widget>[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      MineSweeperBoardWrapper(),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 64.0),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<GameModel>.value(value: GameModel()),
+      ],
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.title),
+        ),
+        body: Center(
+          child: MineSweeperBoardWrapper(),
         ),
       ),
     );
