@@ -40,8 +40,6 @@ class MineSweeperBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 36.0 * model.rows,
-      width: 36.0 * model.cols,
       child: GridView.count(
         crossAxisCount: model.cols,
         physics: NeverScrollableScrollPhysics(),

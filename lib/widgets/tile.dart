@@ -15,8 +15,8 @@ class Tile extends StatefulWidget {
     @required this.onOpen,
     @required this.onSuperOpen,
     @required this.onFlag,
-    // })  : assert(module !=null && onOpen != null && onFlag != null),
-  }) : super(key: key);
+  })  : assert(model != null && onOpen != null && onFlag != null),
+        super(key: key);
 
   final TileModel model;
   final Function() onOpen;
@@ -67,38 +67,31 @@ class _TileState extends State<Tile> {
     if (widget.model.tileState == TileState.FLAGGED) {
       child = Icon(Icons.flag, color: Colors.red, size: iconSize);
     } else if (widget.model.tileState == TileState.OPENED) {
-      child = widget.model.adjacentMines > 0
-          ? Text('${widget.model.adjacentMines}')
-          : Container();
+      if (widget.model.isMine) {
+        child = Stack(
+          children: <Widget>[
+            Opacity(
+              opacity: 0.5,
+              // 使用gps_fixed看起来像个地雷
+              child: Icon(widget.model.isMine ? Icons.gps_fixed : Icons.flag,
+                  size: iconSize),
+            ),
+            Icon(Icons.close, size: iconSize + 1.0, color: Colors.red),
+          ],
+        );
+      } else {
+        child = widget.model.adjacentMines > 0
+            ? Text('${widget.model.adjacentMines}')
+            : Container();
+      }
     } else {
       child = Container();
     }
-// if (widget.model.isWrong) {
-//       child = Stack(
-//         children: <Widget>[
-//           Opacity(
-//             opacity: 0.5,
-//             child: Icon(widget.model.isMine ? Icons.gps_fixed : Icons.flag,
-//                 size: iconSize),
-//           ),
-//           Icon(Icons.close, size: iconSize + 1.0, color: Colors.red),
-//         ],
-//       );
-//     } else
 
     return child;
   }
 
   Color _getBackgroundColor() {
-    // if (widget.model.isExploded) return Colors.red;
-
-    // bool isLightMode = Theme.of(context).brightness == Brightness.light;
-    // bool isLighter =
-    //     widget.model.isOpened || (_isHovering && !widget.model.isFlagged);
-    // if (isLighter) return isLightMode ? Colors.grey[300] : Colors.black45;
-
-    // return isLightMode ? Colors.grey[400] : Colors.black;
-
     bool isLighter = widget.model.tileState == TileState.OPENED ||
         (_isHovering && !(widget.model.tileState == TileState.FLAGGED));
 
