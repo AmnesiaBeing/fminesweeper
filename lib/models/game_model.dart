@@ -1,9 +1,9 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 
 import 'package:fminesweeper/models/tile_model.dart';
+import 'package:fminesweeper/models/time_model.dart';
 
 /// 游戏状态机，刚开始，运行中，赢了，输了
 enum GameState {
@@ -52,7 +52,8 @@ class GameModel with ChangeNotifier {
   List<List<TileModel>> get tiles => _tiles;
   List<List<TileModel>> _tiles;
 
-  /// TODO: 游戏的计时功能
+  /// 游戏的计时功能
+  TimeModel timeModel = TimeModel();
 
   /// 处于坐标xy的方块被按下的执行函数
   /// 1. 判断是否可以按下，游戏状态是否为已经有结果的状态，如果已经出结果了，不管
@@ -63,11 +64,7 @@ class GameModel with ChangeNotifier {
   /// 6. 如果剩余未翻开的数量与总雷数相等，游戏结束，胜利
   /// 7. 完成所有操作后，通知GUI更新
   void onOpen(int x, int y) {
-    final tile = _tiles[x][y];
-
-    if (tile.tileState != TileState.UNOPENED ||
-        _gameState == GameState.WIN ||
-        _gameState == GameState.LOST) {
+    if (_gameState == GameState.WIN || _gameState == GameState.LOST) {
       return;
     }
 
@@ -75,6 +72,7 @@ class GameModel with ChangeNotifier {
     if (_gameState == GameState.STARTING) {
       _placeMines(x, y);
       _getNumAdjacentMines();
+      timeModel.start();
     }
 
     _onOpen(x, y);
@@ -84,10 +82,14 @@ class GameModel with ChangeNotifier {
 
   void _onOpen(int x, int y) {
     final tile = _tiles[x][y];
+
+    if (tile.tileState != TileState.UNOPENED) return;
+
     tile.tileState = TileState.OPENED;
 
     if (tile.isMine) {
-      _endGame(false, losingTile: <int>[x, y]);
+      _endGame(false);
+      timeModel.stop();
     } else {
       // 如果当前附近地雷数量为0，则翻开附近的所有方块
       if (tile.adjacentMines == 0) {
@@ -97,6 +99,7 @@ class GameModel with ChangeNotifier {
 
     if (tilesRemaining == _mines) {
       _endGame(true);
+      timeModel.stop();
     }
   }
 
@@ -110,7 +113,58 @@ class GameModel with ChangeNotifier {
         _gameState == GameState.LOST ||
         _gameState == GameState.WIN) return;
 
-    _visitAllAdjacentMines(x, y);
+    /// 周围的未翻开的且未标记的格子
+    Set<List<int>> adjacentUnflaggedTiles = Set();
+
+    /// 周围未翻开的且标记了的格子数量
+    int adjacentFlaggedTiles = 0;
+
+    kBfsDirections.forEach((List<int> dir) {
+      final newX = x + dir[0];
+      final newY = y + dir[1];
+      if (_isInBounds(newX, newY)) {
+        if (_tiles[newX][newY].tileState == TileState.UNOPENED) {
+          adjacentUnflaggedTiles.add([newX, newY]);
+        } else if (_tiles[newX][newY].tileState == TileState.FLAGGED) {
+          adjacentFlaggedTiles++;
+        }
+      }
+    });
+
+    if (adjacentFlaggedTiles == tile.adjacentMines) {
+      bool endGame = false;
+      bool win = false;
+
+      adjacentUnflaggedTiles.forEach((List<int> newXY) {
+        final newX = newXY[0];
+        final newY = newXY[1];
+        final tile = _tiles[newX][newY];
+
+        tile.tileState = TileState.OPENED;
+
+        if (tile.isMine) {
+          endGame = true;
+          win = false;
+        } else {
+          // 如果当前附近地雷数量为0，则翻开附近的所有方块
+          if (tile.adjacentMines == 0) {
+            _visitAllAdjacentMines(newX, newY);
+          }
+        }
+
+        if (tilesRemaining == _mines) {
+          endGame = true;
+          win = true;
+        }
+      });
+
+      if (endGame) {
+        _endGame(win);
+        timeModel.stop();
+      }
+    }
+
+    notifyListeners();
   }
 
   /// 放置一个雷区标志的执行函数
@@ -120,6 +174,15 @@ class GameModel with ChangeNotifier {
   /// 4. 如果所有标记位置正确，游戏胜利
   void onFlag(int x, int y) {
     final tile = _tiles[x][y];
+
+    // 只要点击了鼠标就算开始，因此开局情况下点了右键，也算数
+    // 首先，布置地雷；然后，计算所有附近的地雷数量
+    if (_gameState == GameState.STARTING) {
+      _placeMines(x, y);
+      _getNumAdjacentMines();
+
+      timeModel.start();
+    }
 
     if (tile.tileState == TileState.OPENED ||
         _gameState == GameState.LOST ||
@@ -137,6 +200,7 @@ class GameModel with ChangeNotifier {
 
     if (_improperlyFlagged == 0 && _flagged == _mines) {
       _endGame(true);
+      timeModel.stop();
     }
 
     notifyListeners();
@@ -145,25 +209,29 @@ class GameModel with ChangeNotifier {
   /// 重启游戏，初始化所有变量
   void restart() {
     _gameState = GameState.STARTING;
-
+    timeModel.reset();
     _resetTiles();
     notifyListeners();
   }
 
   /// 结束游戏，是否胜利，失败的理由
-  void _endGame(bool hasWon, {List<int> losingTile}) {
+  void _endGame(bool hasWon) {
     _gameState = hasWon ? GameState.WIN : GameState.LOST;
 
-    _revealAllTiles(losingTile);
+    _revealAllTiles();
   }
 
   /// 游戏结束时将翻开所有方块
-  void _revealAllTiles(List<int> losingTile) {
-    _tiles
-        .asMap()
-        .forEach((rowIndex, row) => row.asMap().forEach((colIndex, tile) {
-              tile.tileState = TileState.OPENED;
-            }));
+  void _revealAllTiles() {
+    _tiles.asMap().forEach((r, row) => row.asMap().forEach((c, tile) {
+          if (tile.isMine && tile.tileState == TileState.OPENED) {
+            tile.isWrong = true;
+          } else if (!tile.isMine && tile.tileState == TileState.FLAGGED) {
+            tile.isWrong = true;
+          } else {
+            tile.tileState = TileState.OPENED;
+          }
+        }));
   }
 
   List<List<int>> kBfsDirections = [
@@ -204,7 +272,7 @@ class GameModel with ChangeNotifier {
       final newX = x + dir[0];
       final newY = y + dir[1];
       if (_isInBounds(newX, newY) &&
-          !(_tiles[newX][newY].tileState == TileState.OPENED)) {
+          (_tiles[newX][newY].tileState == TileState.UNOPENED)) {
         _onOpen(newX, newY);
       }
     });
@@ -215,15 +283,17 @@ class GameModel with ChangeNotifier {
   // 重置所有方块
   void _resetTiles() {
     _tiles = List.generate(
-        _rows,
-        (x) => List.generate(
-              _cols,
-              (y) => TileModel(
-                tileState: TileState.UNOPENED,
-                isMine: false,
-                adjacentMines: 0,
-              ),
-            ));
+      _rows,
+      (x) => List.generate(
+        _cols,
+        (y) => TileModel(
+          tileState: TileState.UNOPENED,
+          isMine: false,
+          isWrong: false,
+          adjacentMines: 0,
+        ),
+      ),
+    );
     notifyListeners();
   }
 
@@ -250,6 +320,7 @@ class GameModel with ChangeNotifier {
         (y) => TileModel(
           tileState: TileState.UNOPENED,
           isMine: mines[x].contains(y),
+          isWrong: false,
         ),
       ),
     );

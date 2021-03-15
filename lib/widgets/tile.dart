@@ -6,7 +6,7 @@
 */
 
 import 'package:flutter/material.dart';
-import '../models/tile_model.dart';
+import 'package:fminesweeper/models/tile_model.dart';
 
 class Tile extends StatefulWidget {
   const Tile({
@@ -68,17 +68,8 @@ class _TileState extends State<Tile> {
       child = Icon(Icons.flag, color: Colors.red, size: iconSize);
     } else if (widget.model.tileState == TileState.OPENED) {
       if (widget.model.isMine) {
-        child = Stack(
-          children: <Widget>[
-            Opacity(
-              opacity: 0.5,
-              // 使用gps_fixed看起来像个地雷
-              child: Icon(widget.model.isMine ? Icons.gps_fixed : Icons.flag,
-                  size: iconSize),
-            ),
-            Icon(Icons.close, size: iconSize + 1.0, color: Colors.red),
-          ],
-        );
+        // 使用gps_fixed看起来像个地雷
+        child = child = Icon(Icons.gps_fixed, size: iconSize);
       } else {
         child = widget.model.adjacentMines > 0
             ? Text('${widget.model.adjacentMines}')
@@ -86,6 +77,15 @@ class _TileState extends State<Tile> {
       }
     } else {
       child = Container();
+    }
+
+    if (widget.model.isWrong) {
+      child = Stack(
+        children: <Widget>[
+          Opacity(opacity: 0.4, child: child),
+          Icon(Icons.close, size: iconSize + 1.0, color: Colors.red),
+        ],
+      );
     }
 
     return child;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fminesweeper/models/time_model.dart';
 import 'package:provider/provider.dart';
 
 import 'package:fminesweeper/widgets/board.dart';
@@ -10,7 +11,6 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -18,15 +18,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'MineSweeper'),
+      home: MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  final String title;
+  MyHomePage({Key key}) : super(key: key);
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
@@ -35,13 +33,28 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
+    GameModel gameModel = GameModel();
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<GameModel>.value(value: GameModel()),
+        ChangeNotifierProvider<GameModel>.value(value: gameModel),
+        ChangeNotifierProvider<TimeModel>.value(value: gameModel.timeModel),
       ],
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.title),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('扫雷-高级'),
+              Consumer<TimeModel>(
+                  builder: (context, model, child) =>
+                      Text(model.tick.toString())),
+              IconButton(
+                  icon: Icon(Icons.replay),
+                  onPressed: () {
+                    gameModel.restart();
+                  })
+            ],
+          ),
         ),
         body: Center(
           child: MineSweeperBoardWrapper(),
